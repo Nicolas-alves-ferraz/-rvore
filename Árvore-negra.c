@@ -2,108 +2,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-// ------------------------- ÁRVORE AVL (Usuários) -------------------------
-
-typedef struct Usuario {
-    char nome[100];     // chave para ordenação
-    int id;
-    char email[100];
-} Usuario;
-
-typedef struct NodoAVL {
-    Usuario usuario;
-    int altura;
-    struct NodoAVL* esquerda;
-    struct NodoAVL* direita;
-} NodoAVL;
-
-int max(int a, int b) {
-    return (a > b) ? a : b;
-}
-
-int altura(NodoAVL* nodo) {
-    return (nodo == NULL) ? 0 : nodo->altura;
-}
-
-int fatorBalanceamento(NodoAVL* nodo) {
-    return (nodo == NULL) ? 0 : altura(nodo->esquerda) - altura(nodo->direita);
-}
-
-NodoAVL* rotacaoDireita(NodoAVL* y) {
-    NodoAVL* x = y->esquerda;
-    NodoAVL* T2 = x->direita;
-
-    x->direita = y;
-    y->esquerda = T2;
-
-    y->altura = 1 + max(altura(y->esquerda), altura(y->direita));
-    x->altura = 1 + max(altura(x->esquerda), altura(x->direita));
-
-    return x;
-}
-
-NodoAVL* rotacaoEsquerda(NodoAVL* x) {
-    NodoAVL* y = x->direita;
-    NodoAVL* T2 = y->esquerda;
-
-    y->esquerda = x;
-    x->direita = T2;
-
-    x->altura = 1 + max(altura(x->esquerda), altura(x->direita));
-    y->altura = 1 + max(altura(y->esquerda), altura(y->direita));
-
-    return y;
-}
-
-NodoAVL* inserirUsuario(NodoAVL* raiz, Usuario usuario) {
-    if (raiz == NULL) {
-        NodoAVL* novo = (NodoAVL*)malloc(sizeof(NodoAVL));
-        novo->usuario = usuario;
-        novo->altura = 1;
-        novo->esquerda = novo->direita = NULL;
-        return novo;
-    }
-
-    if (strcmp(usuario.nome, raiz->usuario.nome) < 0)
-        raiz->esquerda = inserirUsuario(raiz->esquerda, usuario);
-    else if (strcmp(usuario.nome, raiz->usuario.nome) > 0)
-        raiz->direita = inserirUsuario(raiz->direita, usuario);
-    else
-        return raiz;
-
-    raiz->altura = 1 + max(altura(raiz->esquerda), altura(raiz->direita));
-    int fb = fatorBalanceamento(raiz);
-
-    if (fb > 1 && strcmp(usuario.nome, raiz->esquerda->usuario.nome) < 0)
-        return rotacaoDireita(raiz);
-    if (fb < -1 && strcmp(usuario.nome, raiz->direita->usuario.nome) > 0)
-        return rotacaoEsquerda(raiz);
-    if (fb > 1 && strcmp(usuario.nome, raiz->esquerda->usuario.nome) > 0) {
-        raiz->esquerda = rotacaoEsquerda(raiz->esquerda);
-        return rotacaoDireita(raiz);
-    }
-    if (fb < -1 && strcmp(usuario.nome, raiz->direita->usuario.nome) < 0) {
-        raiz->direita = rotacaoDireita(raiz->direita);
-        return rotacaoEsquerda(raiz);
-    }
-
-    return raiz;
-}
-
-void listarUsuarios(NodoAVL* raiz) {
-    if (raiz != NULL) {
-        listarUsuarios(raiz->esquerda);
-        printf("Nome: %s | ID: %d | Email: %s\n", raiz->usuario.nome, raiz->usuario.id, raiz->usuario.email);
-        listarUsuarios(raiz->direita);
-    }
-}
-
 // ------------------------- ÁRVORE RUBRO-NEGRA (Produtos) -------------------------
-
 typedef enum { VERMELHO, PRETO } Cor;
 
 typedef struct Produto {
-    int codigo;  // chave
+    int codigo;
     char nome[100];
     int quantidade;
     float preco;
@@ -116,6 +19,10 @@ typedef struct NodoRN {
     struct NodoRN* direita;
     struct NodoRN* pai;
 } NodoRN;
+
+int ehPreto(NodoRN* n) {
+    return n == NULL || n->cor == PRETO;
+}
 
 NodoRN* criarProduto(Produto produto) {
     NodoRN* novo = (NodoRN*)malloc(sizeof(NodoRN));
@@ -130,11 +37,17 @@ NodoRN* rotacaoEsquerdaRN(NodoRN* raiz, NodoRN* x) {
     x->direita = y->esquerda;
     if (y->esquerda) y->esquerda->pai = x;
     y->pai = x->pai;
-    if (x->pai == NULL) raiz = y;
-    else if (x == x->pai->esquerda) x->pai->esquerda = y;
-    else x->pai->direita = y;
+
+    if (x->pai == NULL)
+        raiz = y;
+    else if (x == x->pai->esquerda)
+        x->pai->esquerda = y;
+    else
+        x->pai->direita = y;
+
     y->esquerda = x;
     x->pai = y;
+
     return raiz;
 }
 
@@ -143,11 +56,17 @@ NodoRN* rotacaoDireitaRN(NodoRN* raiz, NodoRN* y) {
     y->esquerda = x->direita;
     if (x->direita) x->direita->pai = y;
     x->pai = y->pai;
-    if (y->pai == NULL) raiz = x;
-    else if (y == y->pai->esquerda) y->pai->esquerda = x;
-    else y->pai->direita = x;
+
+    if (y->pai == NULL)
+        raiz = x;
+    else if (y == y->pai->esquerda)
+        y->pai->esquerda = x;
+    else
+        y->pai->direita = x;
+
     x->direita = y;
     y->pai = x;
+
     return raiz;
 }
 
@@ -192,6 +111,11 @@ NodoRN* corrigirInsercao(NodoRN* raiz, NodoRN* z) {
 }
 
 NodoRN* inserirProduto(NodoRN* raiz, Produto produto) {
+    if (buscarProduto(raiz, produto.codigo) != NULL) {
+        printf("Código já existente! Produto não inserido.\n");
+        return raiz;
+    }
+
     NodoRN* novo = criarProduto(produto);
     NodoRN* y = NULL;
     NodoRN* x = raiz;
@@ -219,24 +143,148 @@ void listarProdutos(NodoRN* raiz) {
     if (raiz != NULL) {
         listarProdutos(raiz->esquerda);
         printf("Código: %d | Nome: %s | Qtd: %d | Preço: %.2f | Cor: %s\n",
-               raiz->produto.codigo, raiz->produto.nome, raiz->produto.quantidade,
-               raiz->produto.preco, raiz->cor == VERMELHO ? "Vermelho" : "Preto");
+            raiz->produto.codigo, raiz->produto.nome,
+            raiz->produto.quantidade, raiz->produto.preco,
+            raiz->cor == VERMELHO ? "Vermelho" : "Preto");
         listarProdutos(raiz->direita);
     }
 }
 
-// ------------------------- MAIN -------------------------
+NodoRN* buscarProduto(NodoRN* raiz, int codigo) {
+    if (raiz == NULL || raiz->produto.codigo == codigo)
+        return raiz;
+    if (codigo < raiz->produto.codigo)
+        return buscarProduto(raiz->esquerda, codigo);
+    else
+        return buscarProduto(raiz->direita, codigo);
+}
 
+NodoRN* minimoNodoRN(NodoRN* nodo) {
+    while (nodo->esquerda != NULL)
+        nodo = nodo->esquerda;
+    return nodo;
+}
+
+NodoRN* substituirNodoRN(NodoRN* raiz, NodoRN* u, NodoRN* v) {
+    if (u->pai == NULL)
+        raiz = v;
+    else if (u == u->pai->esquerda)
+        u->pai->esquerda = v;
+    else
+        u->pai->direita = v;
+
+    if (v != NULL)
+        v->pai = u->pai;
+
+    return raiz;
+}
+
+NodoRN* corrigirRemocao(NodoRN* raiz, NodoRN* x) {
+    while (x != raiz && ehPreto(x)) {
+        if (x == x->pai->esquerda) {
+            NodoRN* w = x->pai->direita;
+            if (w->cor == VERMELHO) {
+                w->cor = PRETO;
+                x->pai->cor = VERMELHO;
+                raiz = rotacaoEsquerdaRN(raiz, x->pai);
+                w = x->pai->direita;
+            }
+            if (ehPreto(w->esquerda) && ehPreto(w->direita)) {
+                w->cor = VERMELHO;
+                x = x->pai;
+            } else {
+                if (ehPreto(w->direita)) {
+                    if (w->esquerda) w->esquerda->cor = PRETO;
+                    w->cor = VERMELHO;
+                    raiz = rotacaoDireitaRN(raiz, w);
+                    w = x->pai->direita;
+                }
+                w->cor = x->pai->cor;
+                x->pai->cor = PRETO;
+                if (w->direita) w->direita->cor = PRETO;
+                raiz = rotacaoEsquerdaRN(raiz, x->pai);
+                x = raiz;
+            }
+        } else {
+            NodoRN* w = x->pai->esquerda;
+            if (w->cor == VERMELHO) {
+                w->cor = PRETO;
+                x->pai->cor = VERMELHO;
+                raiz = rotacaoDireitaRN(raiz, x->pai);
+                w = x->pai->esquerda;
+            }
+            if (ehPreto(w->esquerda) && ehPreto(w->direita)) {
+                w->cor = VERMELHO;
+                x = x->pai;
+            } else {
+                if (ehPreto(w->esquerda)) {
+                    if (w->direita) w->direita->cor = PRETO;
+                    w->cor = VERMELHO;
+                    raiz = rotacaoEsquerdaRN(raiz, w);
+                    w = x->pai->esquerda;
+                }
+                w->cor = x->pai->cor;
+                x->pai->cor = PRETO;
+                if (w->esquerda) w->esquerda->cor = PRETO;
+                raiz = rotacaoDireitaRN(raiz, x->pai);
+                x = raiz;
+            }
+        }
+    }
+    if (x) x->cor = PRETO;
+    return raiz;
+}
+
+NodoRN* removerProduto(NodoRN* raiz, int codigo) {
+    NodoRN* z = buscarProduto(raiz, codigo);
+    if (z == NULL) {
+        printf("Produto não encontrado para remoção.\n");
+        return raiz;
+    }
+
+    NodoRN* y = z;
+    Cor corOriginal = y->cor;
+    NodoRN* x;
+
+    if (z->esquerda == NULL) {
+        x = z->direita;
+        raiz = substituirNodoRN(raiz, z, z->direita);
+    } else if (z->direita == NULL) {
+        x = z->esquerda;
+        raiz = substituirNodoRN(raiz, z, z->esquerda);
+    } else {
+        y = minimoNodoRN(z->direita);
+        corOriginal = y->cor;
+        x = y->direita;
+
+        if (y->pai == z) {
+            if (x) x->pai = y;
+        } else {
+            raiz = substituirNodoRN(raiz, y, y->direita);
+            y->direita = z->direita;
+            y->direita->pai = y;
+        }
+
+        raiz = substituirNodoRN(raiz, z, y);
+        y->esquerda = z->esquerda;
+        y->esquerda->pai = y;
+        y->cor = z->cor;
+    }
+
+    free(z);
+    if (corOriginal == PRETO)
+        raiz = corrigirRemocao(raiz, x);
+    return raiz;
+}
+
+// ------------------------- MAIN -------------------------
 int main() {
-    NodoAVL* raizUsuarios = NULL;
     NodoRN* raizProdutos = NULL;
     int opcao, subopcao;
-    int idContador = 1;
 
     do {
         printf("\n=== MENU PRINCIPAL ===\n");
-        printf("1. Sistema de Usuários (AVL)\n");
-        printf("2. Sistema de Inventário (Rubro-Negra)\n");
+        printf("1. Sistema de Inventário (Rubro-Negra)\n");
         printf("0. Sair\n");
         printf("Escolha: ");
         scanf("%d", &opcao);
@@ -245,42 +293,11 @@ int main() {
         switch (opcao) {
             case 1:
                 do {
-                    printf("\n--- Menu de Usuários ---\n");
-                    printf("1. Cadastrar Usuário\n");
-                    printf("2. Listar Usuários\n");
-                    printf("0. Voltar\n");
-                    printf("Escolha: ");
-                    scanf("%d", &subopcao);
-                    getchar();
-
-                    if (subopcao == 1) {
-                        Usuario u;
-                        printf("Nome: ");
-                        fgets(u.nome, 100, stdin);
-                        u.nome[strcspn(u.nome, "\n")] = '\0';
-
-                        printf("Email: ");
-                        fgets(u.email, 100, stdin);
-                        u.email[strcspn(u.email, "\n")] = '\0';
-
-                        u.id = idContador++;
-                        raizUsuarios = inserirUsuario(raizUsuarios, u);
-                        printf("Usuário cadastrado!\n");
-                     }   else if (subopcao == 2) {
-                        if (raizUsuarios == NULL) {
-                        printf("Nenhum usuário cadastrado.\n");
-                     } else {
-                         listarUsuarios(raizUsuarios);
-                            }
-                    }
-                } while (subopcao != 0);
-                break;
-
-            case 2:
-                do {
                     printf("\n--- Menu de Inventário ---\n");
                     printf("1. Cadastrar Produto\n");
                     printf("2. Listar Produtos\n");
+                    printf("3. Buscar Produto\n");
+                    printf("4. Remover Produto\n");
                     printf("0. Voltar\n");
                     printf("Escolha: ");
                     scanf("%d", &subopcao);
@@ -289,32 +306,49 @@ int main() {
                     if (subopcao == 1) {
                         Produto p;
                         printf("Código: ");
-                        scanf("%d", &p.codigo);
-                        getchar();
-
+                        scanf("%d", &p.codigo); getchar();
                         printf("Nome: ");
                         fgets(p.nome, 100, stdin);
                         p.nome[strcspn(p.nome, "\n")] = '\0';
-
                         printf("Quantidade: ");
-                        scanf("%d", &p.quantidade);
+                        scanf("%d", &p.quantidade); getchar();
                         printf("Preço: ");
-                        scanf("%f", &p.preco);
-
+                        scanf("%f", &p.preco); getchar();
                         raizProdutos = inserirProduto(raizProdutos, p);
-                        printf("Produto cadastrado!\n");
-                    }   else if (subopcao == 2) {
-                        if (raizProdutos == NULL) {
-                        printf("Nenhum Produto cadastrado.\n");
-                     } else {
-                         listarProdutos(raizProdutos);
-                            }
+                    } else if (subopcao == 2) {
+                        if (raizProdutos == NULL)
+                            printf("Nenhum produto cadastrado.\n");
+                        else
+                            listarProdutos(raizProdutos);
+                    } else if (subopcao == 3) {
+                        int codigoBusca;
+                        printf("Digite o código do produto para buscar: ");
+                        scanf("%d", &codigoBusca); getchar();
+                        NodoRN* produtoEncontrado = buscarProduto(raizProdutos, codigoBusca);
+                        if (produtoEncontrado) {
+                            printf("Produto encontrado:\n");
+                            printf("Código: %d | Nome: %s | Qtd: %d | Preço: %.2f | Cor: %s\n",
+                                   produtoEncontrado->produto.codigo, produtoEncontrado->produto.nome,
+                                   produtoEncontrado->produto.quantidade, produtoEncontrado->produto.preco,
+                                   produtoEncontrado->cor == VERMELHO ? "Vermelho" : "Preto");
+                        } else {
+                            printf("Produto não encontrado.\n");
+                        }
+                    } else if (subopcao == 4) {
+                        int codigoRemover;
+                        printf("Digite o código do produto para remover: ");
+                        scanf("%d", &codigoRemover); getchar();
+                        raizProdutos = removerProduto(raizProdutos, codigoRemover);
                     }
                 } while (subopcao != 0);
                 break;
+            case 0:
+                printf("Saindo...\n");
+                break;
+            default:
+                printf("Opção inválida!\n");
         }
     } while (opcao != 0);
 
-    printf("Programa finalizado.\n");
     return 0;
 }
